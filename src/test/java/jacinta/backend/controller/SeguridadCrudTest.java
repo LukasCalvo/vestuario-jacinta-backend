@@ -186,4 +186,28 @@ class SeguridadCrudTest {
         assertEquals(200, req("PUT", "/api/categorias/" + id, Map.of("nombre", "Poleras"), ta).status());
         assertEquals(204, req("DELETE", "/api/categorias/" + id, null, ta).status());
     }
+    @Test
+    void permiteRegistroDesdeFrontendYRechazaOtrosOrigenes() throws Exception {
+        var preflight = mvc.perform(options("/api/auth/registro")
+            .header("Origin", "http://localhost:5173")
+            .header("Access-Control-Request-Method", "POST")
+            .header("Access-Control-Request-Headers", "content-type"))
+            .andReturn().getResponse();
+        assertEquals(200, preflight.getStatus());
+        assertEquals("http://localhost:5173", preflight.getHeader("Access-Control-Allow-Origin"));
+
+        var registro = mvc.perform(post("/api/auth/registro")
+            .header("Origin", "http://localhost:5173")
+            .contentType("application/json").content("{}"))
+            .andReturn().getResponse();
+        assertEquals(400, registro.getStatus());
+        assertEquals("http://localhost:5173", registro.getHeader("Access-Control-Allow-Origin"));
+
+        var otroOrigen = mvc.perform(options("/api/auth/registro")
+            .header("Origin", "https://otro.example")
+            .header("Access-Control-Request-Method", "POST"))
+            .andReturn().getResponse();
+        assertEquals(403, otroOrigen.getStatus());
+        assertNull(otroOrigen.getHeader("Access-Control-Allow-Origin"));
+    }
 }
